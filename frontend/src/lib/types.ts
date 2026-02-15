@@ -8,15 +8,78 @@ export interface QueryOptions {
     model: "auto" | "opus" | "sonnet" | "haiku" | string;
     deepSearch?: boolean;
     multiHop?: boolean;
+    files?: FileAttachment[];
 }
 
 // File Attachment
 export interface FileAttachment {
-    id: string;
+    id?: string;
     name: string;
     size: number;
     type: string;
+    file?: File;
     preview?: string;
+}
+
+// Citation from RAG retrieval
+export interface Citation {
+    title: string;
+    section?: string;
+    relevance_score: number;
+    document_id?: string;
+    chunk_id?: string;
+}
+
+// Routing decision from the tiered intelligence router
+export interface RoutingDecision {
+    initial_tier: string;
+    final_tier: string;
+    escalated: boolean;
+    escalation_reason?: string;
+    complexity_score: number;
+    task_type_detected?: string;
+}
+
+// Chat message in a conversation
+export interface Message {
+    id: string;
+    role: "user" | "assistant" | "system";
+    content: string;
+    timestamp: number;
+    isStreaming?: boolean;
+    model?: string;
+    citations?: Citation[];
+    confidence?: number;
+    latency_ms?: number;
+    cost_usd?: number;
+    routing?: RoutingDecision;
+    followUps?: string[];
+    error?: {
+        type: "rate_limit" | "no_results" | "system_error" | "low_confidence";
+        retryAfterSeconds?: number;
+        message?: string;
+    };
+}
+
+// RAG response from the backend
+export interface RAGResponse {
+    text: string;
+    citations?: Citation[];
+    total_latency_ms?: number;
+    llm_response?: {
+        tier?: string;
+        confidence?: number;
+        cost_usd?: number;
+    };
+}
+
+// Conversation with messages
+export interface Conversation {
+    id: string;
+    title: string;
+    messages: Message[];
+    createdAt: number;
+    updatedAt: number;
 }
 
 // Local Model Types

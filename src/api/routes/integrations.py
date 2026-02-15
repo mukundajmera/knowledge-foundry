@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.mcp.servers.confluence_server import ConfluenceMCPServer
 from src.mcp.servers.jira_server import JiraMCPServer
@@ -61,7 +61,7 @@ class ConfluenceSearchRequest(BaseModel):
 
     query: str
     space_key: str | None = None
-    limit: int = 10
+    limit: int = Field(default=10, ge=1, le=100)
 
 
 class JiraConnectRequest(BaseModel):
@@ -78,7 +78,7 @@ class JiraSearchRequest(BaseModel):
     """Request to search Jira issues."""
 
     jql: str
-    max_results: int = 50
+    max_results: int = Field(default=50, ge=1, le=100)
 
 
 class BitbucketConnectRequest(BaseModel):

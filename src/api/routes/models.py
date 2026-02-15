@@ -436,6 +436,11 @@ async def delete_ollama_model(model_name: str) -> dict[str, Any]:
             status_code=e.response.status_code,
             detail=f"Ollama delete failed: {e.response.text}",
         )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="Ollama delete request timed out.",
+        )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=503,
