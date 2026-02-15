@@ -177,7 +177,7 @@ async def search_confluence(
     except ValueError as e:
         if "expired" in str(e).lower():
             raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid search parameters.")
     except Exception as e:
         logger.error(f"Confluence search failed: {e}")
         raise HTTPException(status_code=500, detail=f"Confluence search failed: {type(e).__name__}")
@@ -311,7 +311,7 @@ async def search_jira(
     except ValueError as e:
         if "authentication" in str(e).lower():
             raise HTTPException(status_code=401, detail="Authentication failed. Please reconnect.")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid search parameters.")
     except Exception as e:
         logger.error(f"Jira search failed: {e}")
         raise HTTPException(status_code=500, detail=f"Jira search failed: {type(e).__name__}")
@@ -391,7 +391,7 @@ async def list_bitbucket_repositories(
     except ValueError as e:
         if "authentication" in str(e).lower():
             raise HTTPException(status_code=401, detail="Authentication failed. Please reconnect.")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid request parameters.")
     except Exception as e:
         logger.error(f"Bitbucket list repositories failed: {e}")
         raise HTTPException(status_code=500, detail=f"Bitbucket list failed: {type(e).__name__}")
