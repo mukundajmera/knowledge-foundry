@@ -39,13 +39,16 @@ class EmbeddingService(EmbeddingProvider):
         self._redis_settings = redis_settings or settings.redis
         
         self._mock_mode = False
-        if not self._openai_settings.api_key:
+        if openai_client:
+            # Use explicitly provided client (e.g. in tests or custom setups)
+            self._client = openai_client
+        elif not self._openai_settings.api_key:
             logger.warning("No OpenAI API key found. Using MOCK embeddings.")
             self._mock_mode = True
             # Initialize with dummy key to prevent client init error, though we won't use it
             self._client = openai.AsyncOpenAI(api_key="mock-key")
         else:
-            self._client = openai_client or openai.AsyncOpenAI(
+            self._client = openai.AsyncOpenAI(
                 api_key=self._openai_settings.api_key,
             )
             

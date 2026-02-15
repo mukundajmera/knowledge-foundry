@@ -105,7 +105,7 @@ export default function JiraAuth({ onConnect, isConnected }: JiraAuthProps) {
                 <p className="font-medium mb-1">How to create an API token:</p>
                 <ol className="list-decimal list-inside space-y-1">
                     <li>Go to https://id.atlassian.com/manage-profile/security/api-tokens</li>
-                    <li>Click "Create API token"</li>
+                    <li>Click &quot;Create API token&quot;</li>
                     <li>Give it a label and copy the token</li>
                 </ol>
             </div>

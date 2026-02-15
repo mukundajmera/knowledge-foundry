@@ -38,10 +38,10 @@ export function useConversations() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
 
-    // Load on mount
+    // Load on mount — must use useEffect (not lazy useState) to avoid SSR/hydration mismatch
     useEffect(() => {
         const loaded = loadConversations();
-        setConversations(loaded);
+        setConversations(loaded); // eslint-disable-line react-hooks/set-state-in-effect
         if (loaded.length > 0) {
             setActiveId(loaded[0].id);
         }
@@ -148,7 +148,6 @@ interface GroupedConversations {
 }
 
 function groupByDate(conversations: Conversation[]): GroupedConversations {
-    const now = Date.now();
     const dayMs = 86400_000;
     const todayStart = new Date().setHours(0, 0, 0, 0);
     const yesterdayStart = todayStart - dayMs;

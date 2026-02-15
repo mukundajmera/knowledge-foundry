@@ -8,9 +8,72 @@ import type {
     ProviderStatus,
     LocalChatRequest,
     LocalChatResponse,
+    IntegrationResponse,
+    MCPIntegrationStatus,
+    RAGResponse,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/**
+ * Stream a query to the RAG backend via POST /api/query.
+ *
+ * Sends the query and reads the response as a stream of JSON chunks,
+ * invoking callbacks for progressive text updates, completion, and errors.
+ */
+export async function streamQuery(
+    query: string,
+    onChunk: (text: string) => void,
+    onComplete: (response: RAGResponse) => void,
+    onError: (err: Error) => void,
+    options?: { model?: string; signal?: AbortSignal },
+): Promise<void> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                query,
+                model: options?.model ?? "auto",
+                stream: true,
+            }),
+            signal: options?.signal,
+        });
+
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({ detail: response.statusText }));
+            throw new Error(errBody.detail || `HTTP ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+            throw new Error("ReadableStream not supported");
+        }
+
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            accumulated += chunk;
+            onChunk(accumulated);
+        }
+
+        // Build final response object
+        const ragResponse: RAGResponse = {
+            text: accumulated,
+        };
+        onComplete(ragResponse);
+    } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+            return; // silently ignore aborted requests
+        }
+        onError(err instanceof Error ? err : new Error(String(err)));
+    }
+}
 
 class APIClient {
     private baseURL: string;
@@ -74,8 +137,8 @@ class APIClient {
     }
 
     // MCP Integrations
-    async connectConfluence(baseUrl: string, sessionId: string, sessionToken: string): Promise<any> {
-        return this.request("/api/integrations/confluence/connect", {
+    async connectConfluence(baseUrl: string, sessionId: string, sessionToken: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>("/api/integrations/confluence/connect", {
             method: "POST",
             body: JSON.stringify({
                 base_url: baseUrl,
@@ -85,8 +148,8 @@ class APIClient {
         });
     }
 
-    async connectJira(baseUrl: string, email: string, apiToken: string): Promise<any> {
-        return this.request("/api/integrations/jira/connect", {
+    async connectJira(baseUrl: string, email: string, apiToken: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>("/api/integrations/jira/connect", {
             method: "POST",
             body: JSON.stringify({
                 base_url: baseUrl,
@@ -96,8 +159,8 @@ class APIClient {
         });
     }
 
-    async connectBitbucket(workspace: string, username: string, appPassword: string): Promise<any> {
-        return this.request("/api/integrations/bitbucket/connect", {
+    async connectBitbucket(workspace: string, username: string, appPassword: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>("/api/integrations/bitbucket/connect", {
             method: "POST",
             body: JSON.stringify({
                 workspace: workspace,
@@ -107,12 +170,12 @@ class APIClient {
         });
     }
 
-    async getIntegrationStatus(): Promise<any> {
-        return this.request("/api/integrations/status");
+    async getIntegrationStatus(): Promise<MCPIntegrationStatus> {
+        return this.request<MCPIntegrationStatus>("/api/integrations/status");
     }
 
-    async disconnectIntegration(provider: string): Promise<any> {
-        return this.request(`/api/integrations/${provider}`, {
+    async disconnectIntegration(provider: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>(`/api/integrations/${provider}`, {
             method: "DELETE",
         });
     }

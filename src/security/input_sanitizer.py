@@ -283,7 +283,7 @@ def sanitize_input(text: str) -> SanitizationResult:
     all_threats.extend(detect_injection_patterns(text))
 
     # Layer 3: Obfuscated injection (only if no direct match, to avoid dupes)
-    if not any(t.pattern_label.startswith("obfuscated_") is False
+    if not any(not t.pattern_label.startswith("obfuscated_")
                and t.action == SanitizationAction.BLOCK for t in all_threats):
         obfuscated = detect_obfuscated_injection(text)
         # Deduplicate: only add obfuscated threats not already caught directly

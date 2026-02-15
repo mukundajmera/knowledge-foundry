@@ -29,9 +29,10 @@ export default function ThemeToggle() {
     const [theme, setTheme] = useState<Theme>("dark");
     const [mounted, setMounted] = useState(false);
 
-    // Hydrate from localStorage only on mount (avoid SSR mismatch)
+    // Hydrate from localStorage on mount — setState in effect is intentional
+    // to avoid SSR/hydration mismatch (localStorage unavailable server-side).
     useEffect(() => {
-        setTheme(getInitialTheme());
+        setTheme(getInitialTheme()); // eslint-disable-line react-hooks/set-state-in-effect
         setMounted(true);
     }, []);
 
