@@ -1,0 +1,193 @@
+services:
+  # ─── Infrastructure ───
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: kf-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    networks:
+      - kf-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: kf-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kf-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: kf-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: knowledge_foundry
+      POSTGRES_USER: kf_user
+      POSTGRES_PASSWORD: kf_dev_password
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U kf_user -d knowledge_foundry" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kf-network
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: kf-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    environment:
+      NEO4J_AUTH: neo4j/kf_dev_password
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 512m
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:7474 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - kf-network
+
+  # ─── Application ───
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kf-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      # Postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=knowledge_foundry
+      - POSTGRES_USER=kf_user
+      - POSTGRES_PASSWORD=kf_dev_password
+      # Qdrant
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Neo4j
+      - NEO4J_HOST=neo4j
+      - NEO4J_PORT=7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=kf_dev_password
+      - JWT_SECRET_KEY=change-me-in-production-use-a-real-secret
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LOG_LEVEL=info
+    depends_on:
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - kf-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kf-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - kf-network
+
+  # ─── Monitoring ───
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: kf-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - kf-network
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: kf-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: kf_admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/kf-api-dashboard.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana-dashboard.json:/var/lib/grafana/dashboards/kf-api-dashboard.json:ro
+      - ./infra/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./infra/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+    depends_on:
+      - prometheus
+    networks:
+      - kf-network
+
+volumes:
+  qdrant_data:
+  redis_data:
+  postgres_data:
+  neo4j_data:
+  prometheus_data:
+  grafana_data:
+
+
+networks:
+  kf-network:
+    driver: bridge

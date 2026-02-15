@@ -1,0 +1,215 @@
+{
+    "version": "1.0",
+    "description": "Knowledge Foundry golden evaluation dataset — 20 Q&A pairs for RAGAS evaluation",
+    "questions": [
+        {
+            "id": "q01",
+            "question": "What encryption standards does our platform use for data at rest?",
+            "expected_answer": "The platform uses AES-256 encryption for data at rest, aligned with FIPS 140-2 requirements.",
+            "relevant_sources": [
+                "doc_security_policy_001",
+                "doc_compliance_002"
+            ],
+            "category": "security",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q02",
+            "question": "What is our data retention policy for audit logs?",
+            "expected_answer": "Audit logs are retained for a minimum of 7 years in immutable storage, as required by EU AI Act Article 12.",
+            "relevant_sources": [
+                "doc_compliance_002",
+                "doc_retention_003"
+            ],
+            "category": "compliance",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q03",
+            "question": "How does the RBAC system determine user permissions?",
+            "expected_answer": "RBAC uses a hierarchical role model with three tiers: viewer (read-only), editor (read + write), and admin (full access). Permissions are inherited from parent roles.",
+            "relevant_sources": [
+                "doc_security_policy_001",
+                "doc_rbac_004"
+            ],
+            "category": "security",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q04",
+            "question": "What happens when a user exceeds the rate limit?",
+            "expected_answer": "When a user exceeds their tier rate limit, they receive a 429 response with Retry-After header. Free tier: 10 queries/min, Pro: 50/min, Enterprise: 200/min.",
+            "relevant_sources": [
+                "doc_api_spec_005"
+            ],
+            "category": "api",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q05",
+            "question": "What are the EU AI Act compliance requirements for our AI system?",
+            "expected_answer": "As a high-risk AI system, we must provide: transparency labels on all AI outputs, immutable audit trails, human oversight mechanisms, technical documentation, and conformity assessments.",
+            "relevant_sources": [
+                "doc_compliance_002",
+                "doc_eu_ai_act_006"
+            ],
+            "category": "compliance",
+            "difficulty": "complex"
+        },
+        {
+            "id": "q06",
+            "question": "How does the multi-agent system handle conflicting information from different agents?",
+            "expected_answer": "The supervisor agent detects conflicts between agent responses, flags them with a low confidence score, and presents both perspectives to the user with source citations for each viewpoint.",
+            "relevant_sources": [
+                "doc_agent_arch_007"
+            ],
+            "category": "architecture",
+            "difficulty": "complex"
+        },
+        {
+            "id": "q07",
+            "question": "What is the maximum document size supported for ingestion?",
+            "expected_answer": "The platform supports documents up to 100MB per file. Documents are chunked into 512-token segments with 50-token overlap for optimal retrieval performance.",
+            "relevant_sources": [
+                "doc_ingestion_008"
+            ],
+            "category": "architecture",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q08",
+            "question": "How does the LLM router decide which model to use?",
+            "expected_answer": "The router uses a rule-based complexity classifier that analyzes query length, keyword patterns, safety sensitivity, and task type to assign a complexity score. Scores below 0.3 route to Haiku, 0.3-0.7 to Sonnet, and above 0.7 to Opus.",
+            "relevant_sources": [
+                "doc_router_009",
+                "doc_api_spec_005"
+            ],
+            "category": "architecture",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q09",
+            "question": "What PII types does the output filter detect?",
+            "expected_answer": "The output filter detects and redacts 5 PII types: email addresses, Social Security Numbers, phone numbers, credit card numbers, and IP addresses.",
+            "relevant_sources": [
+                "doc_security_policy_001"
+            ],
+            "category": "security",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q10",
+            "question": "How does the caching strategy improve response times?",
+            "expected_answer": "The 3-level caching strategy provides: L1 response cache (5-minute TTL, eliminates repeated queries), L2 embedding cache (persistent, avoids redundant embedding API calls), and L3 retrieval cache (2-minute TTL, reuses vector search results).",
+            "relevant_sources": [
+                "doc_perf_010"
+            ],
+            "category": "performance",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q11",
+            "question": "What is the disaster recovery plan for the knowledge base?",
+            "expected_answer": "The DR plan includes daily automated backups of PostgreSQL, Qdrant snapshots, and Neo4j dumps to S3-compatible storage with cross-region replication. RTO target is 4 hours, RPO is 1 hour.",
+            "relevant_sources": [
+                "doc_ops_011"
+            ],
+            "category": "operations",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q12",
+            "question": "How does tenant isolation work in multi-tenant mode?",
+            "expected_answer": "Each tenant has a unique tenant_id embedded in JWT tokens. All queries, cache keys, and vector/graph operations are scoped by tenant_id, ensuring complete data isolation at the application layer.",
+            "relevant_sources": [
+                "doc_security_policy_001",
+                "doc_multitenancy_012"
+            ],
+            "category": "security",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q13",
+            "question": "What monitoring alerts are configured for production?",
+            "expected_answer": "Production monitoring includes: API error rate >1% for 5 minutes, p95 latency >500ms for 5 minutes, cache hit rate <30%, and cost per query exceeding 2x baseline. Alerts route to PagerDuty.",
+            "relevant_sources": [
+                "doc_ops_011",
+                "doc_perf_010"
+            ],
+            "category": "operations",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q14",
+            "question": "What is the difference between the Researcher and Compliance agents?",
+            "expected_answer": "The Researcher agent focuses on finding and synthesizing information from the knowledge base using RAG retrieval. The Compliance agent specifically checks responses against regulatory frameworks (EU AI Act, SOC2, GDPR) and flags non-compliant content.",
+            "relevant_sources": [
+                "doc_agent_arch_007"
+            ],
+            "category": "architecture",
+            "difficulty": "medium"
+        },
+        {
+            "id": "q15",
+            "question": "How are prompt injection attacks detected and prevented?",
+            "expected_answer": "Prompt injection detection uses 20+ regex patterns covering instruction override, role manipulation, ChatML injection, and delimiter attacks. Additional defenses include Unicode normalization (leet-speak expansion), Shannon entropy analysis for encoded payloads, and input length validation (10K character max).",
+            "relevant_sources": [
+                "doc_security_policy_001"
+            ],
+            "category": "security",
+            "difficulty": "complex"
+        },
+        {
+            "id": "q16",
+            "question": "What is the expected p95 latency for a standard query?",
+            "expected_answer": "The target p95 latency for a standard query is under 500ms. This includes embedding generation, vector search, optional graph traversal, and LLM synthesis.",
+            "relevant_sources": [
+                "doc_perf_010",
+                "doc_api_spec_005"
+            ],
+            "category": "performance",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q17",
+            "question": "How does the graph store enhance retrieval beyond vector search?",
+            "expected_answer": "The Neo4j graph store captures entity relationships extracted from documents, enabling multi-hop reasoning. When a query involves relationships between concepts (e.g., 'Who reports to the CTO?'), the graph traversal finds connected entities that vector similarity alone would miss.",
+            "relevant_sources": [
+                "doc_graph_013",
+                "doc_agent_arch_007"
+            ],
+            "category": "architecture",
+            "difficulty": "complex"
+        },
+        {
+            "id": "q18",
+            "question": "What file formats are supported for document upload?",
+            "expected_answer": "Supported formats include PDF, DOCX, TXT, Markdown, HTML, and CSV. Each format has a dedicated parser that extracts text content while preserving document structure metadata.",
+            "relevant_sources": [
+                "doc_ingestion_008"
+            ],
+            "category": "architecture",
+            "difficulty": "simple"
+        },
+        {
+            "id": "q19",
+            "question": "How does the circuit breaker pattern protect against LLM API failures?",
+            "expected_answer": "The circuit breaker tracks consecutive LLM API failures. After 5 failures, it opens (blocks requests for 60 seconds). After timeout, it enters half-open state allowing one test request. A success closes the circuit; a failure reopens it. This prevents cascading failures.",
+            "relevant_sources": [
+                "doc_router_009"
+            ],
+            "category": "architecture",
+            "difficulty": "complex"
+        },
+        {
+            "id": "q20",
+            "question": "What accessibility standards does the frontend meet?",
+            "expected_answer": "The frontend meets WCAG 2.1 AA standards including: keyboard navigation for all interactive elements, ARIA labels on all buttons and inputs, single h1 heading hierarchy, high-contrast mode via prefers-contrast media query, and text resizable to 200% without horizontal scroll.",
+            "relevant_sources": [
+                "doc_ui_spec_014"
+            ],
+            "category": "frontend",
+            "difficulty": "medium"
+        }
+    ]
+}

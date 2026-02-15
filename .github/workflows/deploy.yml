@@ -1,0 +1,167 @@
+# Full deployment pipeline: test → evaluate → compliance → staging → load test → production → post-deploy
+name: Deploy Pipeline
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ──────────────────────────────────────────
+  # Stage 1: Test
+  # ──────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest tests/unit/ tests/integration/ -q --tb=short
+      - run: pip install bandit safety
+      - run: bandit -r src/ -ll
+      - run: safety check
+
+  # ──────────────────────────────────────────
+  # Stage 2: RAGAS Evaluation
+  # ──────────────────────────────────────────
+  evaluate:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: RAGAS evaluation against golden dataset
+        run: python -m pytest tests/evaluation/test_ragas.py -v --tb=short
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ──────────────────────────────────────────
+  # Stage 3: Compliance Checks
+  # ──────────────────────────────────────────
+  compliance:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: EU AI Act compliance checks
+        run: python -m pytest tests/integration/test_production_pipeline.py -v -k compliance
+
+  # ──────────────────────────────────────────
+  # Stage 4: Deploy to Staging
+  # ──────────────────────────────────────────
+  deploy_staging:
+    needs: [evaluate, compliance]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+      - name: Configure kubeconfig
+        run: echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+      - name: Deploy to staging
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/ -n knowledge-foundry
+          kubectl rollout status deployment/knowledge-foundry-api -n knowledge-foundry --timeout=300s
+      - name: Smoke tests
+        run: |
+          STAGING_URL=$(kubectl get svc knowledge-foundry-api -n knowledge-foundry -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          curl -sf "$STAGING_URL/health" | jq .status
+          curl -sf "$STAGING_URL/ready" | jq .status
+
+  # ──────────────────────────────────────────
+  # Stage 5: Load Test
+  # ──────────────────────────────────────────
+  load_test:
+    needs: deploy_staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D68
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Run load test (500 QPS target)
+        run: k6 run tests/load/load_test.js --out json=load_results.json
+      - name: Validate results
+        run: |
+          P95=$(jq '.metrics.http_req_duration.values["p(95)"]' load_results.json)
+          echo "p95 latency: ${P95}ms"
+          if (( $(echo "$P95 > 500" | bc -l) )); then
+            echo "FAIL: p95 latency ${P95}ms exceeds 500ms threshold"
+            exit 1
+          fi
+
+  # ──────────────────────────────────────────
+  # Stage 6: Deploy to Production (manual gate)
+  # ──────────────────────────────────────────
+  deploy_production:
+    needs: load_test
+    runs-on: ubuntu-latest
+    environment: production  # Requires manual approval
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+      - name: Configure kubeconfig
+        run: echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > $HOME/.kube/config
+      - name: Blue-green deployment
+        run: |
+          # Deploy green (new version)
+          kubectl apply -f k8s/ -n knowledge-foundry
+          kubectl rollout status deployment/knowledge-foundry-api -n knowledge-foundry --timeout=300s
+
+          # Monitor for 10 minutes
+          echo "Monitoring deployment for 10 minutes..."
+          for i in $(seq 1 10); do
+            HEALTH=$(curl -sf "https://api.knowledgefoundry.ai/health" | jq -r '.status')
+            if [ "$HEALTH" != "healthy" ]; then
+              echo "UNHEALTHY at minute $i — rolling back"
+              kubectl rollout undo deployment/knowledge-foundry-api -n knowledge-foundry
+              exit 1
+            fi
+            echo "Minute $i: healthy"
+            sleep 60
+          done
+          echo "Deployment stable"
+
+  # ──────────────────────────────────────────
+  # Stage 7: Post-Deployment
+  # ──────────────────────────────────────────
+  post_deployment:
+    needs: deploy_production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag release
+        run: |
+          VERSION="v$(date +%Y%m%d.%H%M)"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+      - name: Notify team
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ Knowledge Foundry deployed to production: ${{ github.sha }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

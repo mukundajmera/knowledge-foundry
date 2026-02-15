@@ -1,0 +1,8 @@
+# Knowledge Foundry — Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knowledge-foundry
+  labels:
+    app.kubernetes.io/name: knowledge-foundry
+    app.kubernetes.io/managed-by: kubectl

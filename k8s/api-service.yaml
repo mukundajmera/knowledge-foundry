@@ -1,0 +1,17 @@
+# Knowledge Foundry — API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kf-api
+  namespace: knowledge-foundry
+  labels:
+    app: kf-api
+spec:
+  type: ClusterIP
+  selector:
+    app: kf-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP

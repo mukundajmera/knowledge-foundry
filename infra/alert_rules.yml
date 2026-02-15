@@ -1,0 +1,79 @@
+# Knowledge Foundry — Prometheus Alert Rules
+# Fires when quality targets from MASTER_PROMPT are breached
+
+groups:
+  - name: kf_api_alerts
+    rules:
+      # ─── Latency ───
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="kf-api"}[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency > 500ms"
+          description: "p95 latency is {{ $value }}s (target: <0.5s)"
+
+      - alert: CriticalP99Latency
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{service="kf-api"}[5m])) > 1.0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API p99 latency > 1s — consider rollback"
+          description: "p99 latency is {{ $value }}s"
+
+      # ─── Error Rate ───
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate > 5% — auto-rollback threshold"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: ElevatedErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error rate > 1%"
+
+      # ─── Throughput ───
+      - alert: LowThroughput
+        expr: rate(http_requests_total[5m]) < 10
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Unusually low request rate"
+
+      # ─── Model Cost ───
+      - alert: HighQueryCost
+        expr: avg(kf_query_cost_usd) > 0.10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Average query cost > $0.10"
+          description: "Current avg cost: ${{ $value }}"
+
+      # ─── Cache ───
+      - alert: LowCacheHitRate
+        expr: rate(kf_cache_hits_total[5m]) / (rate(kf_cache_hits_total[5m]) + rate(kf_cache_misses_total[5m])) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cache hit rate below 50%"
+
+      # ─── API Health ───
+      - alert: APIDown
+        expr: up{job="knowledge-foundry-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Knowledge Foundry API is down"
