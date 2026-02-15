@@ -531,9 +531,19 @@ async def chat_with_local_model(
             "cost_usd": response.cost_usd,
         }
     
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Chat with {provider_name} timed out.",
+        )
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail=f"{provider_name} not running. Please start it and try again.",
+        )
     except Exception as e:
         logger.error(f"Local chat failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Chat with {provider_name} failed: {str(e)}",
+            detail=f"Chat with {provider_name} failed: {type(e).__name__}",
         )
