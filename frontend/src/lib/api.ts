@@ -11,69 +11,14 @@ import type {
     IntegrationResponse,
     MCPIntegrationStatus,
     RAGResponse,
+    ExportFormatInfo,
+    ExportRequest,
+    ExportEntityType,
+    ListFormatsResponse,
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-/**
- * Stream a query to the RAG backend via POST /api/query.
- *
- * Sends the query and reads the response as a stream of JSON chunks,
- * invoking callbacks for progressive text updates, completion, and errors.
- */
-export async function streamQuery(
-    query: string,
-    onChunk: (text: string) => void,
-    onComplete: (response: RAGResponse) => void,
-    onError: (err: Error) => void,
-    options?: { model?: string; signal?: AbortSignal },
-): Promise<void> {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/query`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                query,
-                model: options?.model ?? "auto",
-                stream: true,
-            }),
-            signal: options?.signal,
-        });
-
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({ detail: response.statusText }));
-            throw new Error(errBody.detail || `HTTP ${response.status}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-            throw new Error("ReadableStream not supported");
-        }
-
-        const decoder = new TextDecoder();
-        let accumulated = "";
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            accumulated += chunk;
-            onChunk(accumulated);
-        }
-
-        // Build final response object
-        const ragResponse: RAGResponse = {
-            text: accumulated,
-        };
-        onComplete(ragResponse);
-    } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-            return; // silently ignore aborted requests
-        }
-        onError(err instanceof Error ? err : new Error(String(err)));
-    }
-}
+const DEFAULT_TENANT_ID = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || "00000000-0000-0000-0000-000000000001";
 
 class APIClient {
     private baseURL: string;
@@ -179,7 +124,134 @@ class APIClient {
             method: "DELETE",
         });
     }
+
+    // Export API
+    async listExportFormats(entityType?: ExportEntityType): Promise<ListFormatsResponse> {
+        const params = entityType ? `?entity_type=${entityType}` : "";
+        return this.request<ListFormatsResponse>(`/v1/export/formats${params}`);
+    }
+
+    async getExportFormatInfo(formatId: string): Promise<ExportFormatInfo> {
+        return this.request<ExportFormatInfo>(`/v1/export/formats/${formatId}`);
+    }
+
+    async generateExport(request: ExportRequest): Promise<Blob> {
+        const url = `${this.baseURL}/v1/export/generate`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: response.statusText }));
+            throw new Error(error.detail || `HTTP ${response.status}`);
+        }
+
+        return response.blob();
+    }
+
+    async generateExportWithFilename(request: ExportRequest): Promise<{ blob: Blob; filename: string }> {
+        const url = `${this.baseURL}/v1/export/generate`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: response.statusText }));
+            throw new Error(error.detail || `HTTP ${response.status}`);
+        }
+
+        const contentDisposition = response.headers.get("Content-Disposition");
+        let filename = "export";
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (match) {
+                filename = match[1];
+            }
+        }
+
+        const blob = await response.blob();
+        return { blob, filename };
+    }
 }
 
 export const apiClient = new APIClient();
 export default apiClient;
+
+// Stream Query function for RAG pipeline
+export async function streamQuery(
+    query: string,
+    onChunk: (text: string) => void,
+    onComplete: (response: RAGResponse) => void,
+    onError: (error: Error) => void,
+    options?: { model?: string; signal?: AbortSignal }
+): Promise<void> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/v1/query`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                query,
+                tenant_id: DEFAULT_TENANT_ID,
+                model_tier: options?.model || "sonnet",
+            }),
+            signal: options?.signal,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: response.statusText }));
+            throw new Error(error.detail || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Convert API response to RAGResponse format
+        const ragResponse: RAGResponse = {
+            text: data.answer,
+            citations: data.citations || [],
+            routing_decision: data.routing,
+            llm_response: data.performance ? {
+                text: data.answer,
+                model: data.routing?.final_tier || "sonnet",
+                tier: data.routing?.final_tier || "sonnet",
+                confidence: data.confidence,
+                input_tokens: data.performance.input_tokens,
+                output_tokens: data.performance.output_tokens,
+                latency_ms: data.performance.llm_latency_ms,
+                cost_usd: data.performance.cost_usd,
+            } : undefined,
+            search_results: [],
+            total_latency_ms: data.performance?.total_latency_ms || 0,
+        };
+
+        // Simulate streaming by delivering chunks
+        const words = data.answer.split(" ");
+        let currentText = "";
+        for (let i = 0; i < words.length; i++) {
+            currentText += (i > 0 ? " " : "") + words[i];
+            onChunk(currentText);
+            // Small delay to simulate streaming
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+
+        onComplete(ragResponse);
+    } catch (error) {
+        if (error instanceof Error) {
+            if (error.name === "AbortError") {
+                return; // User cancelled
+            }
+            onError(error);
+        } else {
+            onError(new Error("Unknown error occurred"));
+        }
+    }
+}

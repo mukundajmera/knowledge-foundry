@@ -9,6 +9,7 @@
 import { useState } from "react";
 import ErrorBanner from "@/components/ErrorBanner";
 import RoutingTrace from "@/components/RoutingTrace";
+import ExportModal from "@/components/ExportModal";
 import type { Message, Citation } from "@/lib/types";
 
 interface MessageBubbleProps {
@@ -87,6 +88,7 @@ function confidenceLevel(c: number): "high" | "medium" | "low" {
 export default function MessageBubble({ message, onFollowUp, onRegenerate }: MessageBubbleProps) {
     const [showSources, setShowSources] = useState(false);
     const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
+    const [showExport, setShowExport] = useState(false);
 
     const isAI = message.role === "assistant";
 
@@ -203,6 +205,16 @@ export default function MessageBubble({ message, onFollowUp, onRegenerate }: Mes
                                 </button>
                             )}
 
+                            {/* Export */}
+                            <button
+                                className="action-btn"
+                                onClick={() => setShowExport(true)}
+                                aria-label="Export message"
+                                id="export-message-btn"
+                            >
+                                📥 Export
+                            </button>
+
                             {/* Sources toggle */}
                             {message.citations && message.citations.length > 0 && (
                                 <button
@@ -258,6 +270,25 @@ export default function MessageBubble({ message, onFollowUp, onRegenerate }: Mes
                     </>
                 )}
             </div>
+
+            {/* Export Modal */}
+            <ExportModal
+                isOpen={showExport}
+                onClose={() => setShowExport(false)}
+                entityType="message"
+                entityName={`${isAI ? "Assistant" : "User"} message`}
+                entityData={{
+                    id: message.id,
+                    role: message.role,
+                    content: message.content,
+                    timestamp: message.timestamp,
+                    citations: message.citations,
+                    model: message.model,
+                    confidence: message.confidence,
+                    latency_ms: message.latency_ms,
+                    cost_usd: message.cost_usd,
+                }}
+            />
         </div>
     );
 }

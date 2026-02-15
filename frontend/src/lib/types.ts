@@ -17,20 +17,25 @@ export interface FileAttachment {
     name: string;
     size: number;
     type: string;
-    file?: File;
     preview?: string;
+    /**
+     * The underlying File object. Present when the attachment was just created
+     * from a file upload and not yet persisted. May be undefined for attachments
+     * loaded from storage that only have metadata available.
+     */
+    file?: File;
 }
 
-// Citation from RAG retrieval
+// Citation
 export interface Citation {
+    document_id: string;
     title: string;
+    chunk_id?: string;
     section?: string;
     relevance_score: number;
-    document_id?: string;
-    chunk_id?: string;
 }
 
-// Routing decision from the tiered intelligence router
+// Routing Decision
 export interface RoutingDecision {
     initial_tier: string;
     final_tier: string;
@@ -40,46 +45,58 @@ export interface RoutingDecision {
     task_type_detected?: string;
 }
 
-// Chat message in a conversation
+// Message Error
+export interface MessageError {
+    type: "rate_limit" | "no_results" | "system_error" | "low_confidence";
+    message?: string;
+    retryAfterSeconds?: number;
+}
+
+// Message
 export interface Message {
     id: string;
     role: "user" | "assistant" | "system";
     content: string;
     timestamp: number;
-    isStreaming?: boolean;
-    model?: string;
     citations?: Citation[];
+    model?: string;
     confidence?: number;
     latency_ms?: number;
     cost_usd?: number;
-    routing?: RoutingDecision;
+    isStreaming?: boolean;
     followUps?: string[];
-    error?: {
-        type: "rate_limit" | "no_results" | "system_error" | "low_confidence";
-        retryAfterSeconds?: number;
-        message?: string;
-    };
+    error?: MessageError;
+    routing?: RoutingDecision;
 }
 
-// RAG response from the backend
-export interface RAGResponse {
-    text: string;
-    citations?: Citation[];
-    total_latency_ms?: number;
-    llm_response?: {
-        tier?: string;
-        confidence?: number;
-        cost_usd?: number;
-    };
-}
-
-// Conversation with messages
+// Conversation
 export interface Conversation {
     id: string;
     title: string;
     messages: Message[];
     createdAt: number;
     updatedAt: number;
+}
+
+// RAG Response
+export interface LLMResponse {
+    text: string;
+    model: string;
+    tier: string;
+    confidence?: number;
+    input_tokens: number;
+    output_tokens: number;
+    latency_ms: number;
+    cost_usd: number;
+}
+
+export interface RAGResponse {
+    text: string;
+    citations: Citation[];
+    routing_decision?: RoutingDecision;
+    llm_response?: LLMResponse;
+    search_results: { chunk_id: string; document_id: string; text: string; score: number }[];
+    total_latency_ms: number;
 }
 
 // Local Model Types
@@ -185,4 +202,39 @@ export interface IntegrationResponse {
     success: boolean;
     message: string;
     connection_id?: string;
+}
+
+// Export Types
+export type ExportEntityType = "conversation" | "message" | "rag_run" | "evaluation_report";
+export type ExportFormatId = "markdown" | "html" | "pdf" | "docx" | "json" | "text";
+
+export interface ExportFormatInfo {
+    format_id: ExportFormatId;
+    label: string;
+    description: string;
+    mime_type: string;
+    extension: string;
+    supported_entity_types: ExportEntityType[];
+    options_schema: Record<string, unknown>;
+}
+
+export interface ExportOptions {
+    include_metadata: boolean;
+    include_citations: boolean;
+    anonymize_user: boolean;
+    include_raw_json_appendix: boolean;
+    locale: string;
+}
+
+export interface ExportRequest {
+    entity_type: ExportEntityType;
+    entity_id: string;
+    format_id: ExportFormatId;
+    options: Partial<ExportOptions>;
+    entity_data?: Record<string, unknown>;
+}
+
+export interface ListFormatsResponse {
+    formats: ExportFormatInfo[];
+    entity_type?: string;
 }
