@@ -113,7 +113,7 @@ List loaded LMStudio models.
 
 ### Unified Chat
 
-#### POST `/api/chat/local`
+#### POST `/api/models/chat/local`
 Chat with any local model using a unified interface.
 
 **Request:**
@@ -154,6 +154,17 @@ Chat with any local model using a unified interface.
 **Supported Providers:**
 - `ollama` - Ollama models
 - `lmstudio` - LM Studio models
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/models/chat/local \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "ollama",
+    "modelId": "llama3:8b",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
 
 ## Error Handling
 

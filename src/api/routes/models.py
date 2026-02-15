@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.config import get_settings
@@ -146,9 +146,10 @@ async def check_ollama_availability() -> ProviderStatus:
     """Check if Ollama is running and list available models."""
     settings = get_settings()
     base_url = settings.ollama.base_url
+    timeout = settings.ollama.timeout
     
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=float(timeout)) as client:
             # Check health
             version_resp = await client.get(f"{base_url}/api/version")
             if version_resp.status_code != 200:
@@ -215,9 +216,10 @@ async def check_lmstudio_availability() -> ProviderStatus:
     """Check if LMStudio is running and list loaded models."""
     settings = get_settings()
     base_url = settings.lmstudio.base_url
+    timeout = settings.lmstudio.timeout
     
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=float(timeout)) as client:
             # Check health and list models (OpenAI-compatible)
             models_resp = await client.get(f"{base_url}/models")
             models_resp.raise_for_status()
@@ -358,6 +360,8 @@ async def pull_ollama_model(request: PullModelRequest) -> dict[str, Any]:
     """
     settings = get_settings()
     base_url = settings.ollama.base_url
+    # Use a longer timeout for model pulls (they can take several minutes)
+    pull_timeout = min(settings.ollama.timeout * 3, 600.0)  # 3x normal timeout, max 10min
     
     # Validate model name format
     model_name = request.model_name
@@ -368,7 +372,7 @@ async def pull_ollama_model(request: PullModelRequest) -> dict[str, Any]:
         )
     
     try:
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=pull_timeout) as client:
             # Initiate pull (non-streaming for now)
             pull_resp = await client.post(
                 f"{base_url}/api/pull",
@@ -411,9 +415,10 @@ async def delete_ollama_model(model_name: str) -> dict[str, Any]:
     """
     settings = get_settings()
     base_url = settings.ollama.base_url
+    timeout = settings.ollama.timeout
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=float(timeout)) as client:
             delete_resp = await client.delete(
                 f"{base_url}/api/delete",
                 json={"name": model_name},

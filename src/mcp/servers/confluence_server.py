@@ -137,9 +137,17 @@ class ConfluenceMCPServer(MCPServer):
         space_key = args.get("space_key")
         limit = args.get("limit", 10)
 
-        # Build CQL query
-        cql = f'text ~ "{query}"'
+        # Build CQL query with proper escaping to prevent CQL injection
+        # Escape quotes in the query text
+        escaped_query = query.replace('"', '\\"')
+        cql = f'text ~ "{escaped_query}"'
+        
+        # Validate space_key to prevent CQL injection
         if space_key:
+            # Space keys should only contain alphanumeric, hyphens, and underscores
+            import re
+            if not re.match(r'^[A-Z0-9_\-]+$', space_key):
+                raise ValueError(f"Invalid space_key format: {space_key}. Must contain only A-Z, 0-9, _, -")
             cql += f" AND space = {space_key}"
 
         base_url = self._credentials["base_url"]

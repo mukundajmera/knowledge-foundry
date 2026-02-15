@@ -13,7 +13,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from src.mcp.servers.confluence_server import ConfluenceMCPServer
-from src.security.encryption import get_encryption_service
 
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 logger = logging.getLogger(__name__)
@@ -76,12 +75,9 @@ async def connect_confluence(request: ConfluenceConnectRequest) -> IntegrationRe
         # Create MCP server instance
         server = ConfluenceMCPServer()
         
-        # Set credentials (encrypt in production)
-        encryption_service = get_encryption_service()
-        encrypted_session_id = encryption_service.encrypt(request.session_id)
-        encrypted_session_token = encryption_service.encrypt(request.session_token)
-        
-        # Test connection
+        # Test connection with plaintext credentials
+        # NOTE: In production, credentials should be encrypted before storage
+        # and the server should use the encrypted values
         result = await server.invoke_tool(
             "confluence_set_credentials",
             {
@@ -97,8 +93,11 @@ async def connect_confluence(request: ConfluenceConnectRequest) -> IntegrationRe
                 detail=f"Failed to connect: {result.get('error', 'Unknown error')}",
             )
         
-        # Store server instance (use user ID in production)
-        connection_id = "default"  # In production: use user.id
+        # Store server instance
+        # WARNING: Using hardcoded "default" connection_id means all users share
+        # the same Confluence connection. In production, use a per-user/per-tenant
+        # identifier (e.g., user.id or tenant_id) to prevent cross-user data leakage.
+        connection_id = "default"  # TODO: Replace with user.id in production
         _confluence_servers[connection_id] = server
         
         logger.info(f"Confluence connected for user: {connection_id}")
@@ -109,6 +108,9 @@ async def connect_confluence(request: ConfluenceConnectRequest) -> IntegrationRe
             connection_id=connection_id,
         )
     
+    except HTTPException:
+        # Re-raise HTTP exceptions to preserve status code and detail
+        raise
     except Exception as e:
         logger.error(f"Confluence connection failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
