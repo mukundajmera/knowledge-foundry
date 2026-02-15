@@ -99,3 +99,27 @@ export interface MCPIntegrationStatus {
     jira: boolean;
     bitbucket: boolean;
 }
+
+export interface ConfluenceConnectRequest {
+    base_url: string;
+    session_id: string;
+    session_token: string;
+}
+
+export interface JiraConnectRequest {
+    base_url: string;
+    email: string;
+    api_token: string;
+}
+
+export interface BitbucketConnectRequest {
+    workspace: string;
+    username: string;
+    app_password: string;
+}
+
+export interface IntegrationResponse {
+    success: boolean;
+    message: string;
+    connection_id?: string;
+}

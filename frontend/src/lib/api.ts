@@ -72,6 +72,50 @@ class APIClient {
             body: JSON.stringify(request),
         });
     }
+
+    // MCP Integrations
+    async connectConfluence(baseUrl: string, sessionId: string, sessionToken: string): Promise<any> {
+        return this.request("/api/integrations/confluence/connect", {
+            method: "POST",
+            body: JSON.stringify({
+                base_url: baseUrl,
+                session_id: sessionId,
+                session_token: sessionToken,
+            }),
+        });
+    }
+
+    async connectJira(baseUrl: string, email: string, apiToken: string): Promise<any> {
+        return this.request("/api/integrations/jira/connect", {
+            method: "POST",
+            body: JSON.stringify({
+                base_url: baseUrl,
+                email: email,
+                api_token: apiToken,
+            }),
+        });
+    }
+
+    async connectBitbucket(workspace: string, username: string, appPassword: string): Promise<any> {
+        return this.request("/api/integrations/bitbucket/connect", {
+            method: "POST",
+            body: JSON.stringify({
+                workspace: workspace,
+                username: username,
+                app_password: appPassword,
+            }),
+        });
+    }
+
+    async getIntegrationStatus(): Promise<any> {
+        return this.request("/api/integrations/status");
+    }
+
+    async disconnectIntegration(provider: string): Promise<any> {
+        return this.request(`/api/integrations/${provider}`, {
+            method: "DELETE",
+        });
+    }
 }
 
 export const apiClient = new APIClient();
