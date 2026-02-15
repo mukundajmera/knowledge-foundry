@@ -12,6 +12,7 @@ import QueryInput from "@/components/QueryInput";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import ThemeToggle from "@/components/ThemeToggle";
 import DocumentManager from "@/components/DocumentManager";
+import ExportModal from "@/components/ExportModal";
 import { useConversations } from "@/hooks/useConversations";
 import { useChat } from "@/hooks/useChat";
 import type { QueryOptions } from "@/lib/types";
@@ -37,6 +38,7 @@ export default function Home() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [view, setView] = useState<"chat" | "documents">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -190,6 +192,19 @@ export default function Home() {
             ) : (
               /* Messages */
               <div className="messages-container" role="log" aria-label="Conversation messages">
+                {/* Export conversation button */}
+                {activeConversation && messages.length > 0 && (
+                  <div className="conversation-actions">
+                    <button
+                      className="export-conversation-btn"
+                      onClick={() => setExportOpen(true)}
+                      aria-label="Export conversation"
+                      id="export-conversation-btn"
+                    >
+                      📥 Export Conversation
+                    </button>
+                  </div>
+                )}
                 <div className="messages-list">
                   {messages.map((msg) => (
                     <MessageBubble
@@ -219,6 +234,23 @@ export default function Home() {
         isOpen={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
       />
+
+      {/* Export conversation modal */}
+      {activeConversation && (
+        <ExportModal
+          isOpen={exportOpen}
+          onClose={() => setExportOpen(false)}
+          entityType="conversation"
+          entityName={activeConversation.title}
+          entityData={{
+            id: activeConversation.id,
+            title: activeConversation.title,
+            messages: activeConversation.messages,
+            createdAt: activeConversation.createdAt,
+            updatedAt: activeConversation.updatedAt,
+          }}
+        />
+      )}
     </div>
   );
 }

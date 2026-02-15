@@ -26,6 +26,7 @@ class AuditAction(str, Enum):
     INJECTION_BLOCKED = "injection_blocked"
     PII_REDACTED = "pii_redacted"
     AUTH_FAILURE = "auth_failure"
+    EXPORT = "export"
 
 
 @dataclass(frozen=True)
