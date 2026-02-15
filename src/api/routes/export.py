@@ -425,7 +425,7 @@ async def generate_export(
     audit_trail = getattr(request.app.state, "audit_trail", None)
     if audit_trail:
         audit_trail.log(
-            AuditAction.QUERY,  # Reuse query action for now
+            AuditAction.EXPORT,
             tenant_id=context.tenant_id or "",
             user_id=context.user_id or "",
             input_text=f"Export {entity_type.value} to {format_id.value}",

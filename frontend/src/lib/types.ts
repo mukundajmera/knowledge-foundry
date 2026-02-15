@@ -17,6 +17,11 @@ export interface FileAttachment {
     size: number;
     type: string;
     preview?: string;
+    /**
+     * The underlying File object. Present when the attachment was just created
+     * from a file upload and not yet persisted. May be undefined for attachments
+     * loaded from storage that only have metadata available.
+     */
     file?: File;
 }
 

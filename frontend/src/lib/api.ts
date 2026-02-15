@@ -16,6 +16,7 @@ import type {
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const DEFAULT_TENANT_ID = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || "00000000-0000-0000-0000-000000000001";
 
 class APIClient {
     private baseURL: string;
@@ -190,8 +191,6 @@ export async function streamQuery(
     onError: (error: Error) => void,
     options?: { model?: string; signal?: AbortSignal }
 ): Promise<void> {
-    const tenantId = "00000000-0000-0000-0000-000000000001"; // Default tenant for demo
-
     try {
         const response = await fetch(`${API_BASE_URL}/v1/query`, {
             method: "POST",
@@ -200,7 +199,7 @@ export async function streamQuery(
             },
             body: JSON.stringify({
                 query,
-                tenant_id: tenantId,
+                tenant_id: DEFAULT_TENANT_ID,
                 model_tier: options?.model || "sonnet",
             }),
             signal: options?.signal,
