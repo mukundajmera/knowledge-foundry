@@ -48,6 +48,10 @@ test.describe("Local Models Discovery", () => {
         // Check that both provider cards are displayed
         await expect(page.getByRole("heading", { name: /Ollama/ })).toBeVisible();
         await expect(page.getByRole("heading", { name: /LM Studio/ })).toBeVisible();
+
+        // Check port numbers are displayed
+        await expect(page.getByText("Port 11434")).toBeVisible();
+        await expect(page.getByText("Port 1234")).toBeVisible();
     });
 
     test("should show offline status when providers are not running", async ({ page }) => {
