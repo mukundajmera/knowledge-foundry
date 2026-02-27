@@ -7,6 +7,42 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Export System", () => {
     test.beforeEach(async ({ page }) => {
+        // Mock export formats API since backend may not be running
+        await page.route("**/v1/export/formats**", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    formats: [
+                        {
+                            format_id: "markdown",
+                            name: "Markdown",
+                            description: "Export as Markdown (.md)",
+                            file_extension: ".md",
+                            mime_type: "text/markdown",
+                            supported_entity_types: ["conversation", "message", "rag_run"],
+                        },
+                        {
+                            format_id: "html",
+                            name: "HTML",
+                            description: "Export as HTML",
+                            file_extension: ".html",
+                            mime_type: "text/html",
+                            supported_entity_types: ["conversation", "message", "rag_run"],
+                        },
+                        {
+                            format_id: "json",
+                            name: "JSON",
+                            description: "Export as JSON",
+                            file_extension: ".json",
+                            mime_type: "application/json",
+                            supported_entity_types: ["conversation", "message", "rag_run"],
+                        },
+                    ],
+                }),
+            });
+        });
+
         // Set up a conversation in localStorage before each test
         await page.goto("/");
         await page.evaluate(() => {

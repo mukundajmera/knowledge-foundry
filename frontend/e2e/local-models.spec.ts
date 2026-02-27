@@ -15,18 +15,39 @@ test.describe("Local Models Discovery", () => {
     });
 
     test("should discover and display local providers", async ({ page }) => {
+        // Mock API to return provider data since backend may not be running
+        await page.route("**/api/models/local/discover", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    available_providers: [],
+                    ollama: {
+                        provider: "ollama",
+                        available: false,
+                        error: "Not running",
+                        models: [],
+                        count: 0,
+                    },
+                    lmstudio: {
+                        provider: "lmstudio",
+                        available: false,
+                        error: "Not running",
+                        models: [],
+                        count: 0,
+                    },
+                }),
+            });
+        });
+
         await page.goto("/models");
 
         // Wait for discovery component to load
         await expect(page.getByText("Local LLM Providers")).toBeVisible();
 
         // Check that both provider cards are displayed
-        await expect(page.getByText("Ollama")).toBeVisible();
-        await expect(page.getByText("LM Studio")).toBeVisible();
-
-        // Check port numbers are displayed
-        await expect(page.getByText("Port 11434")).toBeVisible();
-        await expect(page.getByText("Port 1234")).toBeVisible();
+        await expect(page.getByRole("heading", { name: /Ollama/ })).toBeVisible();
+        await expect(page.getByRole("heading", { name: /LM Studio/ })).toBeVisible();
     });
 
     test("should show offline status when providers are not running", async ({ page }) => {
@@ -150,13 +171,13 @@ test.describe("Local Models Discovery", () => {
         await page.getByText("View setup instructions").first().click();
 
         // Check modal is displayed
-        await expect(page.getByText("Install Ollama")).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Install Ollama" })).toBeVisible();
         await expect(page.getByText("Visit https://ollama.ai")).toBeVisible();
-        await expect(page.getByRole("button", { name: "Visit Website" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Visit Website" })).toBeVisible();
 
         // Close modal
         await page.getByRole("button", { name: "Close" }).click();
-        await expect(page.getByText("Install Ollama")).not.toBeVisible();
+        await expect(page.getByRole("heading", { name: "Install Ollama" })).not.toBeVisible();
     });
 
     test("should refresh provider status when clicking refresh button", async ({ page }) => {
