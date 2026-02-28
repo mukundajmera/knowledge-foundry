@@ -1,8 +1,11 @@
 """Unit tests for Code Sandbox Plugin."""
 
-import pytest
 from unittest.mock import MagicMock, patch
-import asyncio
+
+import pytest
+
+from src.plugins.sandbox import CodeSandboxPlugin
+
 
 # Mock _DOCKER_AVAILABLE to verify behavior when missing
 @pytest.fixture
@@ -19,7 +22,6 @@ def mock_docker_client():
         mock.from_env.return_value = client
         yield client
 
-from src.plugins.sandbox import CodeSandboxPlugin
 
 @pytest.mark.asyncio
 async def test_sandbox_manifest(mock_docker_client):
@@ -31,15 +33,15 @@ async def test_sandbox_manifest(mock_docker_client):
 @pytest.mark.asyncio
 async def test_sandbox_execution_success(mock_docker_client):
     plugin = CodeSandboxPlugin()
-    
+
     # Mock container run output
     mock_docker_client.containers.run.return_value = b"Hello Sandbox"
-    
+
     res = await plugin.execute("execute_python", {"code": "print('Hello Sandbox')"})
-    
+
     assert res.success is True
     assert res.data["stdout"] == "Hello Sandbox"
-    
+
     # Verify strict security calls
     mock_docker_client.containers.run.assert_called_once()
     args, kwargs = mock_docker_client.containers.run.call_args

@@ -71,6 +71,8 @@ test.describe("Chat Interface", () => {
 
     test("keyboard shortcuts modal opens on ? key", async ({ page }) => {
         await page.goto("/");
+        // Wait for page to fully hydrate before sending keyboard events
+        await page.waitForSelector("#shortcuts-btn", { state: "visible" });
         await page.keyboard.press("?");
         await expect(page.locator(".shortcuts-modal")).toBeVisible();
         await expect(page.locator(".shortcuts-title")).toContainText("Keyboard Shortcuts");

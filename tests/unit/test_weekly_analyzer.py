@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from src.improvement.metrics_collector import MetricsCollector, QueryEvent, KPISnapshot
+from src.improvement.metrics_collector import KPISnapshot, MetricsCollector, QueryEvent
 from src.improvement.weekly_analyzer import WeeklyAnalyzer, WeeklyReport
 
 
@@ -55,7 +53,7 @@ class TestWeeklyAnalyzer:
 
     def test_anomaly_detection_high_cost(self) -> None:
         c = MetricsCollector()
-        for i in range(10):
+        for _i in range(10):
             c.record(QueryEvent(cost_usd=0.15))  # Exceeds $0.10 threshold
         report = WeeklyAnalyzer(c).run()
         cost_anomalies = [a for a in report.anomalies if a.metric == "avg_cost_per_query"]
@@ -64,7 +62,7 @@ class TestWeeklyAnalyzer:
 
     def test_anomaly_detection_low_satisfaction(self) -> None:
         c = MetricsCollector()
-        for i in range(10):
+        for _i in range(10):
             c.record(QueryEvent(user_satisfaction=0.0))  # All thumbs down
         report = WeeklyAnalyzer(c).run()
         sat_anomalies = [a for a in report.anomalies if a.metric == "thumbs_up_rate"]
@@ -72,7 +70,7 @@ class TestWeeklyAnalyzer:
 
     def test_opportunity_detection(self) -> None:
         c = MetricsCollector()
-        for i in range(10):
+        for _i in range(10):
             c.record(QueryEvent(cost_usd=0.12, user_satisfaction=0.0))
         report = WeeklyAnalyzer(c).run()
         areas = {o.area for o in report.opportunities}

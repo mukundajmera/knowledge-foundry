@@ -22,7 +22,6 @@ from src.core.interfaces import (
     ModelTier,
     RAGResponse,
     RoutingDecision,
-    SearchResult,
 )
 
 
