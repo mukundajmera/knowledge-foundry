@@ -8,11 +8,12 @@ export interface QueryOptions {
     model: "auto" | "opus" | "sonnet" | "haiku" | string;
     deepSearch?: boolean;
     multiHop?: boolean;
+    files?: FileAttachment[];
 }
 
 // File Attachment
 export interface FileAttachment {
-    id: string;
+    id?: string;
     name: string;
     size: number;
     type: string;

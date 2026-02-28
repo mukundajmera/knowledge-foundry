@@ -81,8 +81,8 @@ class ExtractionResponse(BaseModel):
 @router.post("/entities/search", response_model=EntitySearchResponse)
 async def search_entities(req: EntitySearchRequest, request: Request):
     """Search for entities in the knowledge graph."""
-    container = request.app.state.services
-    if not container.graph_store:
+    container = getattr(request.app.state, "services", None)
+    if not container or not container.graph_store:
         raise HTTPException(status_code=503, detail="Graph store not available")
 
     entities = await container.graph_store.search_entities(
@@ -101,8 +101,8 @@ async def search_entities(req: EntitySearchRequest, request: Request):
 @router.post("/traverse", response_model=TraverseResponse)
 async def traverse_graph(req: TraverseRequest, request: Request):
     """Traverse the knowledge graph from entry entities."""
-    container = request.app.state.services
-    if not container.graph_store:
+    container = getattr(request.app.state, "services", None)
+    if not container or not container.graph_store:
         raise HTTPException(status_code=503, detail="Graph store not available")
 
     result = await container.graph_store.traverse(
@@ -128,8 +128,8 @@ async def traverse_graph(req: TraverseRequest, request: Request):
 @router.post("/extract", response_model=ExtractionResponse)
 async def extract_entities(req: ExtractionRequest, request: Request):
     """Extract entities and relationships from text using LLM."""
-    container = request.app.state.services
-    if not container.entity_extractor:
+    container = getattr(request.app.state, "services", None)
+    if not container or not container.entity_extractor:
         raise HTTPException(status_code=503, detail="Entity extractor not available")
 
     result = await container.entity_extractor.extract_from_chunk(
@@ -157,8 +157,8 @@ async def extract_entities(req: ExtractionRequest, request: Request):
 @router.get("/health")
 async def graph_health(request: Request):
     """Check graph store health."""
-    container = request.app.state.services
-    if not container.graph_store:
+    container = getattr(request.app.state, "services", None)
+    if not container or not container.graph_store:
         return {"status": "unavailable", "detail": "Graph store not configured"}
 
     healthy = await container.graph_store.health_check()

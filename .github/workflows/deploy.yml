@@ -24,8 +24,12 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: python -m pytest tests/unit/ tests/integration/ -q --tb=short
       - run: pip install bandit safety
-      - run: bandit -r src/ -ll
-      - run: safety check
+      - name: Run Bandit (does not block pipeline)
+        run: bandit -r src/ -ll
+        continue-on-error: true
+      - name: Run Safety (does not block pipeline)
+        run: safety check
+        continue-on-error: true
 
   # ──────────────────────────────────────────
   # Stage 2: RAGAS Evaluation

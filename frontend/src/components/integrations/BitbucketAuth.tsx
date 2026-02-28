@@ -105,7 +105,7 @@ export default function BitbucketAuth({ onConnect, isConnected }: BitbucketAuthP
                 <p className="font-medium mb-1">How to create an app password:</p>
                 <ol className="list-decimal list-inside space-y-1">
                     <li>Go to Bitbucket → Personal settings → App passwords</li>
-                    <li>Click "Create app password"</li>
+                    <li>Click &quot;Create app password&quot;</li>
                     <li>Give it a label and select permissions (repositories: read)</li>
                     <li>Copy the generated password</li>
                 </ol>

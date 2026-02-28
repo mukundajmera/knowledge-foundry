@@ -91,6 +91,7 @@ export default function DocumentManager({ onClose }: DocumentManagerProps) {
         setUploading(true);
         try {
             for (const f of uploadFiles) {
+                if (!f.file) continue;
                 const formData = new FormData();
                 formData.append("file", f.file);
                 await fetch(`${API_BASE}/v1/documents`, { method: "POST", body: formData });

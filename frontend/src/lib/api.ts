@@ -8,6 +8,8 @@ import type {
     ProviderStatus,
     LocalChatRequest,
     LocalChatResponse,
+    IntegrationResponse,
+    MCPIntegrationStatus,
     RAGResponse,
     ExportFormatInfo,
     ExportRequest,
@@ -80,8 +82,8 @@ class APIClient {
     }
 
     // MCP Integrations
-    async connectConfluence(baseUrl: string, sessionId: string, sessionToken: string): Promise<unknown> {
-        return this.request("/api/integrations/confluence/connect", {
+    async connectConfluence(baseUrl: string, sessionId: string, sessionToken: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>("/api/integrations/confluence/connect", {
             method: "POST",
             body: JSON.stringify({
                 base_url: baseUrl,
@@ -91,8 +93,8 @@ class APIClient {
         });
     }
 
-    async connectJira(baseUrl: string, email: string, apiToken: string): Promise<unknown> {
-        return this.request("/api/integrations/jira/connect", {
+    async connectJira(baseUrl: string, email: string, apiToken: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>("/api/integrations/jira/connect", {
             method: "POST",
             body: JSON.stringify({
                 base_url: baseUrl,
@@ -102,8 +104,8 @@ class APIClient {
         });
     }
 
-    async connectBitbucket(workspace: string, username: string, appPassword: string): Promise<unknown> {
-        return this.request("/api/integrations/bitbucket/connect", {
+    async connectBitbucket(workspace: string, username: string, appPassword: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>("/api/integrations/bitbucket/connect", {
             method: "POST",
             body: JSON.stringify({
                 workspace: workspace,
@@ -113,12 +115,12 @@ class APIClient {
         });
     }
 
-    async getIntegrationStatus(): Promise<unknown> {
-        return this.request("/api/integrations/status");
+    async getIntegrationStatus(): Promise<MCPIntegrationStatus> {
+        return this.request<MCPIntegrationStatus>("/api/integrations/status");
     }
 
-    async disconnectIntegration(provider: string): Promise<unknown> {
-        return this.request(`/api/integrations/${provider}`, {
+    async disconnectIntegration(provider: string): Promise<IntegrationResponse> {
+        return this.request<IntegrationResponse>(`/api/integrations/${provider}`, {
             method: "DELETE",
         });
     }

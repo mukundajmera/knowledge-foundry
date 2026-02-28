@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.mcp.servers.confluence_server import ConfluenceMCPServer
 from src.mcp.servers.jira_server import JiraMCPServer
@@ -61,7 +61,7 @@ class ConfluenceSearchRequest(BaseModel):
 
     query: str
     space_key: str | None = None
-    limit: int = 10
+    limit: int = Field(default=10, ge=1, le=100)
 
 
 class JiraConnectRequest(BaseModel):
@@ -78,7 +78,7 @@ class JiraSearchRequest(BaseModel):
     """Request to search Jira issues."""
 
     jql: str
-    max_results: int = 50
+    max_results: int = Field(default=50, ge=1, le=100)
 
 
 class BitbucketConnectRequest(BaseModel):
@@ -144,7 +144,7 @@ async def connect_confluence(request: ConfluenceConnectRequest) -> IntegrationRe
         raise
     except Exception as e:
         logger.error(f"Confluence connection failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Confluence connection failed: {type(e).__name__}")
 
 
 @router.post("/confluence/search")
@@ -176,11 +176,11 @@ async def search_confluence(
     
     except ValueError as e:
         if "expired" in str(e).lower():
-            raise HTTPException(status_code=401, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
+        raise HTTPException(status_code=400, detail="Invalid search parameters.")
     except Exception as e:
         logger.error(f"Confluence search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Confluence search failed: {type(e).__name__}")
 
 
 @router.get("/status")
@@ -279,7 +279,7 @@ async def connect_jira(request: JiraConnectRequest) -> IntegrationResponse:
         raise
     except Exception as e:
         logger.error(f"Jira connection failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Jira connection failed: {type(e).__name__}")
 
 
 @router.post("/jira/search")
@@ -310,11 +310,11 @@ async def search_jira(
     
     except ValueError as e:
         if "authentication" in str(e).lower():
-            raise HTTPException(status_code=401, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=401, detail="Authentication failed. Please reconnect.")
+        raise HTTPException(status_code=400, detail="Invalid search parameters.")
     except Exception as e:
         logger.error(f"Jira search failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Jira search failed: {type(e).__name__}")
 
 
 # =============================================================
@@ -363,7 +363,7 @@ async def connect_bitbucket(request: BitbucketConnectRequest) -> IntegrationResp
         raise
     except Exception as e:
         logger.error(f"Bitbucket connection failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Bitbucket connection failed: {type(e).__name__}")
 
 
 @router.get("/bitbucket/repositories")
@@ -390,8 +390,8 @@ async def list_bitbucket_repositories(
     
     except ValueError as e:
         if "authentication" in str(e).lower():
-            raise HTTPException(status_code=401, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=401, detail="Authentication failed. Please reconnect.")
+        raise HTTPException(status_code=400, detail="Invalid request parameters.")
     except Exception as e:
         logger.error(f"Bitbucket list repositories failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Bitbucket list failed: {type(e).__name__}")

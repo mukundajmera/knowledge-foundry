@@ -55,15 +55,15 @@ test.describe("Complete User Journey", () => {
 
     test("theme toggle works", async ({ page }) => {
         await page.goto("/");
-        const body = page.locator("body");
-        const initialClass = await body.getAttribute("class") || "";
 
-        // Find theme toggle (sun/moon icon)
-        const themeBtn = page.locator("button[aria-label='Toggle theme']");
-        if (await themeBtn.isVisible()) {
-            await themeBtn.click();
-            // Verify class changed or some style changed
-            // This depends on implementation, usually toggles "dark" class or data-theme
-        }
+        // Find theme toggle by its stable ID
+        const themeBtn = page.locator("#theme-toggle-btn");
+        await expect(themeBtn).toBeVisible({ timeout: 5000 });
+
+        // Check initial theme and verify it changes after click
+        const initialTheme = await page.locator("html").getAttribute("data-theme");
+        await themeBtn.click();
+        const newTheme = await page.locator("html").getAttribute("data-theme");
+        expect(newTheme).not.toBe(initialTheme);
     });
 });
