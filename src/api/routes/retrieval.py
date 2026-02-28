@@ -84,6 +84,17 @@ def _format_response(resp: RetrievalResponse) -> dict[str, Any]:
                 "result_count": len(s.results),
                 "tokens_used": s.tokens_used,
                 "latency_ms": s.latency_ms,
+                "sub_queries": [
+                    {
+                        "text": sq.text,
+                        "kb_id": str(sq.kb_id) if sq.kb_id else None,
+                        "rationale": sq.rationale,
+                        "result_count": len(sq.results),
+                        "token_count": sq.token_count,
+                    }
+                    for sq in s.sub_queries
+                ] if s.sub_queries else [],
+                "synthesis": s.synthesis or None,
             }
             for s in resp.steps
         ],

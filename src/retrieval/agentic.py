@@ -152,16 +152,21 @@ class AgenticRetrievalEngine:
         """Simple single-KB top-K retrieval.
 
         Embeds the query, searches the vector store, and returns results
-        without LLM synthesis.
+        without LLM synthesis.  Scopes results to the requested KB via filters.
         """
         start = time.monotonic()
         query_embedding = await self._embedding_service.embed_query(request.query)
+
+        # Build filters, scoping to a single KB when kb_id is provided.
+        scoped_filters = dict(request.filters) if request.filters else {}
+        if request.kb_id is not None:
+            scoped_filters.setdefault("kb_id", str(request.kb_id))
 
         results = await self._vector_store.search(
             query_embedding=query_embedding,
             tenant_id=request.tenant_id,
             top_k=request.top_k,
-            filters=request.filters or None,
+            filters=scoped_filters or None,
             similarity_threshold=request.similarity_threshold,
         )
 
@@ -305,12 +310,13 @@ class AgenticRetrievalEngine:
         response = await self._llm_provider.generate(prompt, config)
 
         sub_queries: list[SubQuery] = []
-        for line in response.text.strip().split("\n"):
+        for idx, line in enumerate(response.text.strip().split("\n")):
             line = line.strip()
             if line.startswith("- "):
                 line = line[2:]
             if line:
-                kb_id = request.kb_ids[0] if request.kb_ids else None
+                # Round-robin KB assignment when multiple KBs are provided
+                kb_id = request.kb_ids[idx % len(request.kb_ids)] if request.kb_ids else None
                 sub_queries.append(SubQuery(text=line, kb_id=kb_id, rationale="LLM decomposition"))
 
         # Fallback: if decomposition produced nothing, use original query
@@ -324,14 +330,22 @@ class AgenticRetrievalEngine:
         sub_query: SubQuery,
         request: AgenticRetrievalRequest,
     ) -> list[SearchResult]:
-        """Retrieve results for a single sub-query."""
+        """Retrieve results for a single sub-query.
+
+        Scopes the search to the sub-query's target KB (if set) via filters.
+        """
         query_embedding = await self._embedding_service.embed_query(sub_query.text)
+
+        # Build filters, scoping to the sub-query's target KB when available.
+        scoped_filters = dict(request.filters) if request.filters else {}
+        if sub_query.kb_id is not None:
+            scoped_filters.setdefault("kb_id", str(sub_query.kb_id))
 
         results = await self._vector_store.search(
             query_embedding=query_embedding,
             tenant_id=request.tenant_id,
             top_k=request.top_k_per_step,
-            filters=request.filters or None,
+            filters=scoped_filters or None,
             similarity_threshold=0.6,
         )
         return results

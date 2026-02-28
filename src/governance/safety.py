@@ -84,24 +84,13 @@ class SafetyEngine:
             if policy.client_id and policy.client_id != client_id:
                 continue
 
-            for rule in policy.get_active_rules():
-                confidence = self._evaluate_rule(rule, query)
-                if confidence >= rule.threshold:
-                    violation = SafetyViolation(
-                        policy_id=policy.policy_id,
-                        rule_id=rule.rule_id,
-                        category=rule.category,
-                        severity=_SEVERITY_MAP.get(rule.action, ViolationSeverity.MEDIUM),
-                        action_taken=rule.action,
-                        query=query,
-                        confidence=confidence,
-                        blocked=rule.action == SafetyAction.BLOCK,
-                        knowledge_base_id=knowledge_base_id,
-                        client_id=client_id,
-                    )
-                    violations.append(violation)
-                    if rule.action == SafetyAction.BLOCK:
-                        should_block = True
+            policy_violations, policy_blocked = self._evaluate_policy(
+                policy, query, query, is_response=False,
+                knowledge_base_id=knowledge_base_id, client_id=client_id,
+            )
+            violations.extend(policy_violations)
+            if policy_blocked:
+                should_block = True
 
         self._violations.extend(violations)
         return SafetyCheckResult(
@@ -133,25 +122,13 @@ class SafetyEngine:
             if policy.client_id and policy.client_id != client_id:
                 continue
 
-            for rule in policy.get_active_rules():
-                confidence = self._evaluate_rule(rule, response_text)
-                if confidence >= rule.threshold:
-                    violation = SafetyViolation(
-                        policy_id=policy.policy_id,
-                        rule_id=rule.rule_id,
-                        category=rule.category,
-                        severity=_SEVERITY_MAP.get(rule.action, ViolationSeverity.MEDIUM),
-                        action_taken=rule.action,
-                        query=query,
-                        response_snippet=response_text[:200],
-                        confidence=confidence,
-                        blocked=rule.action == SafetyAction.BLOCK,
-                        knowledge_base_id=knowledge_base_id,
-                        client_id=client_id,
-                    )
-                    violations.append(violation)
-                    if rule.action == SafetyAction.BLOCK:
-                        should_block = True
+            policy_violations, policy_blocked = self._evaluate_policy(
+                policy, response_text, query, is_response=True,
+                knowledge_base_id=knowledge_base_id, client_id=client_id,
+            )
+            violations.extend(policy_violations)
+            if policy_blocked:
+                should_block = True
 
         self._violations.extend(violations)
         return SafetyCheckResult(
@@ -159,6 +136,78 @@ class SafetyEngine:
             blocked=should_block,
             violations=violations,
         )
+
+    def _evaluate_policy(
+        self,
+        policy: SafetyPolicy,
+        text: str,
+        query: str,
+        is_response: bool,
+        knowledge_base_id: UUID | None,
+        client_id: UUID | None,
+    ) -> tuple[list[SafetyViolation], bool]:
+        """Evaluate a single policy against text (shared by request/response checks).
+
+        Checks explicit rules first, then generates implicit violations for
+        ``blocked_categories`` that have no explicit rule.
+        """
+        violations: list[SafetyViolation] = []
+        should_block = False
+
+        # Track which categories are covered by explicit rules
+        covered_categories: set[BlockedCategory] = set()
+
+        # 1. Evaluate explicit rules
+        for rule in policy.get_active_rules():
+            covered_categories.add(rule.category)
+            confidence = self._evaluate_rule(rule, text)
+            if confidence >= rule.threshold:
+                violation = SafetyViolation(
+                    policy_id=policy.policy_id,
+                    rule_id=rule.rule_id,
+                    category=rule.category,
+                    severity=_SEVERITY_MAP.get(rule.action, ViolationSeverity.MEDIUM),
+                    action_taken=rule.action,
+                    query=query if not is_response else query,
+                    response_snippet=text[:200] if is_response else "",
+                    confidence=confidence,
+                    blocked=rule.action == SafetyAction.BLOCK,
+                    knowledge_base_id=knowledge_base_id,
+                    client_id=client_id,
+                )
+                violations.append(violation)
+                if rule.action == SafetyAction.BLOCK:
+                    should_block = True
+
+        # 2. Generate implicit violations for blocked_categories without explicit rules
+        for category in policy.blocked_categories:
+            if category in covered_categories:
+                continue
+            implicit_rule = SafetyRule(
+                name=f"implicit-{category.value}",
+                category=category,
+                action=policy.default_action,
+                threshold=0.8,
+            )
+            confidence = self._evaluate_rule(implicit_rule, text)
+            if confidence >= implicit_rule.threshold:
+                violation = SafetyViolation(
+                    policy_id=policy.policy_id,
+                    category=category,
+                    severity=_SEVERITY_MAP.get(policy.default_action, ViolationSeverity.MEDIUM),
+                    action_taken=policy.default_action,
+                    query=query if not is_response else query,
+                    response_snippet=text[:200] if is_response else "",
+                    confidence=confidence,
+                    blocked=policy.default_action == SafetyAction.BLOCK,
+                    knowledge_base_id=knowledge_base_id,
+                    client_id=client_id,
+                )
+                violations.append(violation)
+                if policy.default_action == SafetyAction.BLOCK:
+                    should_block = True
+
+        return violations, should_block
 
     def _evaluate_rule(self, rule: SafetyRule, text: str) -> float:
         """Evaluate a safety rule against text content.

@@ -69,7 +69,7 @@ class EvalEngine:
         passed_count = 0
 
         for probe in suite.probes:
-            result = await self._run_probe(probe, knowledge_base_id)
+            result = await self._run_probe(probe, run.knowledge_base_id)
             probe_results.append(result)
             if result.passed:
                 passed_count += 1

@@ -109,6 +109,23 @@ class TestBasicRetrieval:
         assert len(response.results) == 0
 
 
+    async def test_basic_retrieve_scopes_by_kb_id(
+        self, mock_vector_store: AsyncMock, mock_embedding_service: AsyncMock, mock_llm_provider: AsyncMock
+    ) -> None:
+        engine = AgenticRetrievalEngine(mock_vector_store, mock_embedding_service, mock_llm_provider)
+        kb_id = uuid4()
+        req = BasicRetrievalRequest(
+            kb_id=kb_id,
+            query="test",
+            tenant_id="tenant-1",
+        )
+        await engine.basic_retrieve(req)
+
+        # Verify search was called with kb_id in filters
+        call_kwargs = mock_vector_store.search.call_args[1]
+        assert call_kwargs["filters"]["kb_id"] == str(kb_id)
+
+
 class TestAgenticRetrieval:
     """Tests for agentic multi-hop retrieval."""
 

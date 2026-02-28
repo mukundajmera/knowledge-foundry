@@ -42,6 +42,15 @@ _safety_engine = SafetyEngine()
 # =============================================================
 
 
+class SafetyRuleRequest(BaseModel):
+    """A single rule within a safety policy creation request."""
+
+    name: str = ""
+    category: BlockedCategory
+    action: SafetyAction = SafetyAction.FLAG
+    threshold: float = 0.8
+
+
 class CreateSafetyPolicyRequest(BaseModel):
     """Request to create a safety policy."""
 
@@ -53,7 +62,17 @@ class CreateSafetyPolicyRequest(BaseModel):
     default_action: SafetyAction = SafetyAction.FLAG
     require_grounding: bool = False
     add_disclaimers: bool = False
-    rules: list[dict[str, Any]] = Field(default_factory=list)
+    rules: list[SafetyRuleRequest] = Field(default_factory=list)
+
+
+class EvalProbeRequest(BaseModel):
+    """A single evaluation probe within a suite creation request."""
+
+    name: str = ""
+    input_query: str
+    expected_output: str | None = None
+    metric_type: EvalMetricType = EvalMetricType.FAITHFULNESS
+    threshold: float = 0.9
 
 
 class CreateEvalSuiteRequest(BaseModel):
@@ -68,7 +87,7 @@ class CreateEvalSuiteRequest(BaseModel):
     )
     schedule: EvalScheduleType = EvalScheduleType.ON_DEMAND
     sample_rate: float = 0.1
-    probes: list[dict[str, Any]] = Field(default_factory=list)
+    probes: list[EvalProbeRequest] = Field(default_factory=list)
 
 
 class SafetyCheckRequest(BaseModel):
@@ -90,10 +109,10 @@ async def create_safety_policy(req: CreateSafetyPolicyRequest) -> dict[str, Any]
     """Create a new safety policy."""
     rules = [
         SafetyRule(
-            name=r.get("name", f"rule-{i}"),
-            category=BlockedCategory(r["category"]),
-            action=SafetyAction(r.get("action", "flag")),
-            threshold=r.get("threshold", 0.8),
+            name=r.name or f"rule-{i}",
+            category=r.category,
+            action=r.action,
+            threshold=r.threshold,
         )
         for i, r in enumerate(req.rules)
     ]
@@ -203,11 +222,11 @@ async def create_eval_suite(req: CreateEvalSuiteRequest) -> dict[str, Any]:
     """Create an evaluation suite."""
     probes = [
         EvalProbe(
-            name=p.get("name", f"probe-{i}"),
-            input_query=p["input_query"],
-            expected_output=p.get("expected_output"),
-            metric_type=EvalMetricType(p.get("metric_type", "faithfulness")),
-            threshold=p.get("threshold", 0.9),
+            name=p.name or f"probe-{i}",
+            input_query=p.input_query,
+            expected_output=p.expected_output,
+            metric_type=p.metric_type,
+            threshold=p.threshold,
         )
         for i, p in enumerate(req.probes)
     ]

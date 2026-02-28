@@ -196,6 +196,34 @@ class TestSafetyEngine:
         result = engine.check_request("hate kill violent abuse")
         assert result.blocked is False
 
+    def test_engine_blocked_categories_without_rules(self) -> None:
+        """blocked_categories should generate implicit violations even without explicit rules."""
+        policy = SafetyPolicy(
+            name="categories-only",
+            blocked_categories=[BlockedCategory.TOXICITY],
+            default_action=SafetyAction.BLOCK,
+            rules=[],
+        )
+        engine = SafetyEngine(policies=[policy])
+        result = engine.check_request("hate kill violent abuse")
+        assert result.blocked is True
+        assert len(result.violations) > 0
+        assert result.violations[0].category == BlockedCategory.TOXICITY
+
+    def test_engine_blocked_categories_with_default_flag(self) -> None:
+        """blocked_categories with default_action=FLAG should flag but not block."""
+        policy = SafetyPolicy(
+            name="flag-categories",
+            blocked_categories=[BlockedCategory.TOXICITY],
+            default_action=SafetyAction.FLAG,
+            rules=[],
+        )
+        engine = SafetyEngine(policies=[policy])
+        result = engine.check_request("hate kill violent abuse")
+        assert result.blocked is False
+        assert result.allowed is True
+        assert len(result.violations) > 0
+
 
 # =============================================================
 # EVALUATION ENGINE TESTS

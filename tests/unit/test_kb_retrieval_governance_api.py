@@ -166,3 +166,19 @@ class TestGovernanceAPI:
     async def test_list_eval_runs(self, client: AsyncClient) -> None:
         resp = await client.get("/api/v1/governance/eval-runs")
         assert resp.status_code == 200
+
+    async def test_create_safety_policy_invalid_rule_returns_422(self, client: AsyncClient) -> None:
+        """Malformed rules should return 422 validation error, not 500."""
+        resp = await client.post("/api/v1/governance/safety-policies", json={
+            "name": "bad-policy",
+            "rules": [{"invalid_field": "no category"}],
+        })
+        assert resp.status_code == 422
+
+    async def test_create_eval_suite_invalid_probe_returns_422(self, client: AsyncClient) -> None:
+        """Malformed probes should return 422 validation error, not 500."""
+        resp = await client.post("/api/v1/governance/eval-suites", json={
+            "name": "bad-suite",
+            "probes": [{"no_input_query": True}],
+        })
+        assert resp.status_code == 422
