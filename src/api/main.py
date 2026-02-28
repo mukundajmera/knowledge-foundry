@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from src.api.middleware.telemetry import TelemetryMiddleware
-from src.api.routes import documents, health, orchestrator, query, graph_routes, compliance_health, feedback, models, integrations, export
+from src.api.routes import documents, health, orchestrator, query, graph_routes, compliance_health, feedback, models, integrations, export, knowledge_bases, retrieval, governance
 from src.compliance.audit import AuditTrail
 from src.improvement.feedback_processor import FeedbackProcessor
 from src.core.config import get_settings
@@ -129,6 +129,9 @@ def create_app() -> FastAPI:
     app.include_router(models.router)
     app.include_router(integrations.router)
     app.include_router(export.router)
+    app.include_router(knowledge_bases.router)
+    app.include_router(retrieval.router)
+    app.include_router(governance.router)
 
     return app
 
